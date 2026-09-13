@@ -1,5 +1,10 @@
 # MindRoom Stack (Full Docker Compose)
 
+<picture>
+  <source media="(prefers-reduced-motion: no-preference)" srcset="https://raw.githubusercontent.com/mindroom-ai/mindroom/main/assets/logo/logo-mark-animated.svg" />
+  <img src="https://raw.githubusercontent.com/mindroom-ai/mindroom/main/assets/logo/logo-mark.svg" alt="MindRoom Logo" align="right" width="120" />
+</picture>
+
 This repo starts a complete MindRoom stack in one command:
 - MindRoom runtime with bundled dashboard
 - Matrix Tuwunel homeserver
