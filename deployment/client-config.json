@@ -5,12 +5,12 @@
   "sidebar": {
     "showExploreCommunity": false,
     "showAddSpace": false,
-    "showMindRoom": true,
+    "showMindRoom": false,
     "mindRoomUrl": "${MINDROOM_DASHBOARD_URL}"
   },
   "auth": {
     "hideServerPickerWhenSingle": true,
-    "allowRegistration": true,
+    "allowRegistration": false,
     "requireAppleProvider": false
   },
   "welcome": {
@@ -18,7 +18,7 @@
     "subtitle": "Private Matrix chat on your Tailnet.",
     "sourceLabel": "Deployment Source",
     "sourceUrl": "https://github.com/jeffbking/mindroom-stack",
-    "docsLabel": "Stack Docs",
-    "docsUrl": "https://github.com/mindroom-ai/mindroom-stack"
+    "docsLabel": "Dashboard",
+    "docsUrl": "${MINDROOM_DASHBOARD_URL}"
   }
 }

@@ -81,6 +81,13 @@ its standalone admin UI does not have a separate Matrix login. Chat requires
 Matrix authentication. Nothing uses Funnel, a public tunnel, or a LAN listener.
 The managed rooms are private but not E2EE by default.
 
+Chat hides the signup link after the initial owner account is created. Its
+welcome screen links directly to the canonical dashboard. The hosted-service
+"local MindRoom" pairing tab is disabled because this standalone stack does
+not implement that hosted pairing API. The initial account was created with
+the signup UI enabled and the private registration token; enable that UI only
+temporarily when deliberately provisioning another human.
+
 | Persistent location | Contents |
 | --- | --- |
 | `mindroom-stack_tuwunel_data` at `/var/lib/tuwunel` | RocksDB homeserver database, users, rooms, events, signing keys, Matrix media |
