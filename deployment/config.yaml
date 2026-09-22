@@ -9,6 +9,11 @@ models:
       base_url: https://api.meta.ai/v1
       max_completion_tokens: 16384
 
+mcp_servers:
+  smart:
+    transport: streamable-http
+    url: 'https://mcp.walrus-bebop.ts.net/mcp/$smart'
+
 agents:
   assistant:
     display_name: Assistant
@@ -37,7 +42,7 @@ agents:
     learning: false
     memory_backend: file
     context_files: [SOUL.md, AGENTS.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md]
-    tools: [memory, thread_tags]
+    tools: [memory, thread_tags, mcp_smart]
     instructions:
       - Be helpful and concise. Ask before external or destructive actions.
       - Keep conversation state in the configured workspace; never claim knowledge from an inaccessible external memory store.

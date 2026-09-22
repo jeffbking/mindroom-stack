@@ -233,6 +233,29 @@ rollback shortcut. Return to `main` after the reviewed correction is ready.
 
 ## External agents (investigated, not provisioned)
 
+### MCPHub tools for Mind
+
+Mind connects to the existing private MCPHub endpoint
+`https://mcp.walrus-bebop.ts.net/mcp/$smart` with `streamable-http`.
+`$smart` is a literal gateway path segment, not an environment placeholder;
+single-quote the URL if using it in a shell. The endpoint is reachable from
+the MindRoom container without an additional authorization header.
+
+The top-level `mcp_servers.smart` definition registers `mcp_smart`; Mind's
+existing tool list includes it alongside `memory` and `thread_tags`. The
+gateway exposes `smart_search_tools` and `smart_call_tool`, allowing discovery
+and invocation of the connected MCPHub integrations. This includes their
+write capabilities. Mind retains its owner-only conversation policy. Other
+agents receive this access only when `mcp_smart` is added to their tool lists.
+
+Agent self-configuration tools cannot create a top-level MCP server. Register
+the server in the live `runtime/config/config.yaml` on the host, and preserve
+the same definition in `deployment/config.yaml` for reproducible setup.
+MindRoom reloads this configuration without a Docker restart. A server outage
+uses MindRoom's default graceful degradation; it does not block agent startup.
+
+### External Matrix identities
+
 [`matrix-mcp`](https://github.com/mindroom-ai/matrix-mcp) 0.8.1 is the existing
 MIT-licensed Python >=3.12 integration. Local stdio provides room/history reads,
 thread replies, explicit Matrix mentions, membership and bounded media tools.
