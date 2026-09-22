@@ -41,6 +41,60 @@ MindRoom's supported `openai` / `chat_completions` adapter. `META_API_KEY` in
 the private `.env` is mapped to the adapter's `OPENAI_API_KEY` inside the
 container. This does not configure an OpenAI-hosted model. No key is tracked.
 
+### ChatGPT OAuth model option
+
+Two model options use MindRoom's native Codex Responses provider:
+
+| Config name | Model ID | Dashboard label |
+| --- | --- | --- |
+| `codex` | `gpt-6-astra` | GPT-6 Astra (ChatGPT OAuth) |
+| `codex-luna` | `gpt-5.6-luna` | GPT-5.6 Luna (ChatGPT OAuth) |
+
+Select either in an agent's Model field; adding the options does not change
+existing agent models or the default Muse model. Both share the deployment's
+dedicated OAuth session. The conservative 258,000-token replay window follows
+the installed MindRoom Codex preset.
+
+Authenticate a dedicated session with the official Codex CLI's device login.
+MindRoom reads and refreshes its tokens in `/app/config/codex-auth/auth.json`,
+persisted at `runtime/config/codex-auth/` on the host. This directory must be
+writable (refresh uses a lock and atomic replacement), mode 0700, with the
+credential file mode 0600. Keep it in protected backups and out of git. Do not
+copy the active host CLI's tokens or mount its entire configuration directory:
+the deployment has its own OAuth session and refresh lifecycle.
+
+For initial login or reauthentication, with MindRoom running and the official
+native Codex CLI installed on this Linux host:
+
+```sh
+# Copy the installed CLI temporarily; no MindRoom image rebuild is required.
+docker cp "$(readlink -f "$(command -v codex)")" \
+  mindroom-stack-mindroom-1:/tmp/mindroom-codex-login
+docker compose exec -T mindroom python - <<'PY'
+from pathlib import Path
+p = Path('/app/config/codex-auth')
+p.mkdir(mode=0o700, exist_ok=True)
+p.chmod(0o700)
+link = Path('/app/.codex')
+if link.is_symlink():
+    assert link.resolve() == p, 'Existing CLI home targets another directory'
+elif link.exists():
+    raise SystemExit('Existing CLI home requires manual inspection')
+else:
+    link.symlink_to(p, target_is_directory=True)
+PY
+docker compose exec mindroom /tmp/mindroom-codex-login \
+  -c 'cli_auth_credentials_store="file"' login --device-auth
+```
+
+Complete the displayed OpenAI browser sign-in. Device login opens no inbound
+callback port. The temporary CLI/home symlink is needed only for login;
+MindRoom uses the explicit `codex_home` path after container recreation.
+Authentication follows [OpenAI's device-login documentation](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
+and [MindRoom's Codex provider](https://docs.mindroom.chat/configuration/models/#codex-models-with-chatgpt-login).
+ChatGPT account/workspace limits apply. OAuth tokens are not OpenAI API keys;
+no `OPENAI_API_KEY` replacement is needed.
+
 Reuse: official Compose, MindRoom's provider adapter, Matrix registration-token
 support, Tailscale Serve, and the upstream smoke-test helpers handle deployment
 and protocols. The additions are deployment-specific configuration and small
