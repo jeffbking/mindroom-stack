@@ -16,6 +16,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from bootstrap_runtime import bootstrap_runtime
+
 STACK_ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = STACK_ROOT / ".env"
 ENV_EXAMPLE_FILE = STACK_ROOT / ".env.example"
@@ -155,9 +157,12 @@ def _ensure_env_file() -> dict[str, str]:
     if ENV_FILE.exists():
         return _load_env_file(ENV_FILE)
 
-    shutil.copyfile(ENV_EXAMPLE_FILE, ENV_FILE)
+    template = STACK_ROOT / "deployment/deployment.env.example"
+    shutil.copyfile(template if template.exists() else ENV_EXAMPLE_FILE, ENV_FILE)
+    ENV_FILE.chmod(0o600)
     raise QuickstartError(
-        "Created .env from .env.example. Set ANTHROPIC_API_KEY in .env and rerun ./scripts/quickstart.py."
+        "Created private .env. Set META_API_KEY and MATRIX_REGISTRATION_TOKEN in .env "
+        "and follow deployment/README.md before first startup."
     )
 
 
@@ -275,7 +280,7 @@ def _preflight() -> tuple[dict[str, str], list[str]]:
         return env_values, configured_keys
 
     raise QuickstartError(
-        "No AI provider key is configured. Set ANTHROPIC_API_KEY in .env for the fastest path, then rerun."
+        "No AI provider key is configured. Set META_API_KEY in the private .env, then rerun."
     )
 
 
@@ -354,6 +359,7 @@ def main() -> int:
         print(f"Using provider keys from: {', '.join(configured_keys)}")
 
         if not args.wait_only:
+            bootstrap_runtime(STACK_ROOT)
             print("Starting docker compose stack...")
             try:
                 _compose_output("up", "-d")

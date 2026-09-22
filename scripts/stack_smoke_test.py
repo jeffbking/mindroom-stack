@@ -374,81 +374,91 @@ def run(args: argparse.Namespace) -> None:
             "initial_device_display_name": "stack-smoke-test",
         })
         user = RegisteredUser(response["user_id"], response["access_token"], credentials["password"])
-        if user.user_id != credentials["user_id"]:
-            raise SmokeTestError("Login returned a different Matrix identity")
-        print(f"Logged in as {user.user_id}", flush=True)
-        for alias in (args.assistant_room_alias, args.mind_room_alias):
-            _request_json(
-                "POST", f"{args.homeserver}/_matrix/client/v3/join/{urllib.parse.quote(alias, safe='')}",
-                token=user.access_token, payload={},
-            )
     else:
         user = _register_user(args.homeserver)
         print(f"Registered {user.user_id}", flush=True)
 
-    lobby_room_id = _resolve_and_wait_for_autojoin(
-        args.homeserver,
-        user.access_token,
-        room_alias=args.assistant_room_alias,
-        user_id=user.user_id,
-        timeout_seconds=args.timeout_seconds,
-    )
-    personal_room_id = _resolve_and_wait_for_autojoin(
-        args.homeserver,
-        user.access_token,
-        room_alias=args.mind_room_alias,
-        user_id=user.user_id,
-        timeout_seconds=args.timeout_seconds,
-    )
+    try:
+        if args.credentials_file:
+            if user.user_id != credentials["user_id"]:
+                raise SmokeTestError("Login returned a different Matrix identity")
+            print(f"Logged in as {user.user_id}", flush=True)
+            for alias in (args.assistant_room_alias, args.mind_room_alias):
+                _request_json(
+                    "POST", f"{args.homeserver}/_matrix/client/v3/join/{urllib.parse.quote(alias, safe='')}",
+                    token=user.access_token, payload={},
+                )
 
-    initial_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    since = initial_sync.get("next_batch")
+        lobby_room_id = _resolve_and_wait_for_autojoin(
+            args.homeserver,
+            user.access_token,
+            room_alias=args.assistant_room_alias,
+            user_id=user.user_id,
+            timeout_seconds=args.timeout_seconds,
+        )
+        personal_room_id = _resolve_and_wait_for_autojoin(
+            args.homeserver,
+            user.access_token,
+            room_alias=args.mind_room_alias,
+            user_id=user.user_id,
+            timeout_seconds=args.timeout_seconds,
+        )
 
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=lobby_room_id,
-        agent_user_id=args.assistant_user_id,
-        marker_prefix="ASSISTANT",
-        since=since,
-        timeout_seconds=args.timeout_seconds,
-    )
-    post_assistant_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=personal_room_id,
-        agent_user_id=args.mind_user_id,
-        marker_prefix="MIND",
-        since=post_assistant_sync.get("next_batch"),
-        timeout_seconds=args.timeout_seconds,
-    )
+        initial_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        since = initial_sync.get("next_batch")
 
-    if not args.restart_check:
-        return
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=lobby_room_id,
+            agent_user_id=args.assistant_user_id,
+            marker_prefix="ASSISTANT",
+            since=since,
+            timeout_seconds=args.timeout_seconds,
+        )
+        post_assistant_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=personal_room_id,
+            agent_user_id=args.mind_user_id,
+            marker_prefix="MIND",
+            since=post_assistant_sync.get("next_batch"),
+            timeout_seconds=args.timeout_seconds,
+        )
 
-    _restart_stack()
-    _wait_for_stack_health(
-        args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds,
-        args.client_homeserver_url,
-    )
+        if not args.restart_check:
+            return
 
-    joined_after_restart = _joined_rooms(args.homeserver, user.access_token)
-    missing_after_restart = [room_id for room_id in (lobby_room_id, personal_room_id) if room_id not in joined_after_restart]
-    if missing_after_restart:
-        raise SmokeTestError(f"User lost room membership after restart: {missing_after_restart}; joined={joined_after_restart}")
-    print("Restart preserved homeserver health and room membership", flush=True)
+        _restart_stack()
+        _wait_for_stack_health(
+            args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds,
+            args.client_homeserver_url,
+        )
 
-    sync_after_restart = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=personal_room_id,
-        agent_user_id=args.mind_user_id,
-        marker_prefix="RESTART-MIND",
-        since=sync_after_restart.get("next_batch"),
-        timeout_seconds=args.timeout_seconds,
-    )
+        joined_after_restart = _joined_rooms(args.homeserver, user.access_token)
+        missing_after_restart = [room_id for room_id in (lobby_room_id, personal_room_id) if room_id not in joined_after_restart]
+        if missing_after_restart:
+            raise SmokeTestError(f"User lost room membership after restart: {missing_after_restart}; joined={joined_after_restart}")
+        print("Restart preserved homeserver health and room membership", flush=True)
+
+        sync_after_restart = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=personal_room_id,
+            agent_user_id=args.mind_user_id,
+            marker_prefix="RESTART-MIND",
+            since=sync_after_restart.get("next_batch"),
+            timeout_seconds=args.timeout_seconds,
+        )
+    finally:
+        if args.credentials_file:
+            _request_json(
+                "POST", f"{args.homeserver}/_matrix/client/v3/logout",
+                token=user.access_token, payload={},
+            )
+            print("Logged out the temporary smoke-test session", flush=True)
 
 
 def parse_args() -> argparse.Namespace:

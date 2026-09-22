@@ -107,6 +107,34 @@ No backup scheduler was added to other host applications.
 
 ## Operations
 
+On a **fresh checkout**, before starting any containers:
+
+```sh
+cp deployment/deployment.env.example .env  # only when .env does not exist
+chmod 600 .env
+# Set META_API_KEY and a generated MATRIX_REGISTRATION_TOKEN privately in .env.
+python3 scripts/bootstrap_runtime.py
+```
+
+Bootstrap copies the tracked deployment config and Mind workspace seeds only
+when individual destination files are absent. It preserves existing live edits
+and memories. Quickstart also runs it before Compose startup. For recovery,
+restore the private .env, runtime files and data volumes from a consistent
+backup; fresh templates are not a replacement for recovered state.
+
+For a genuinely new homeserver, temporarily enable `auth.allowRegistration` in
+`deployment/client-config.json`, start `tuwunel client` with Compose's `--no-deps`
+option, configure their private Tailscale mappings, and create Jeff through Chat
+using the registration token **before starting MindRoom**. This gives the human
+the first-account admin role. Disable that signup UI again and restart only
+`client`, then run `./scripts/quickstart.py`. Do not repeat first registration
+against an existing database. If the default quickstart creates a missing .env,
+it uses this deployment's template, restricts its permissions, and stops for
+credential configuration.
+For the private smoke test, store the owner's full `user_id` and `password` in
+`runtime/jeff-credentials.json` as JSON and restrict it to mode 0600. The test
+creates and logs out its own session; it does not need a saved access token.
+
 Run in `/home/jeff/Developer/mindroom-stack`:
 
 ```sh
@@ -132,6 +160,8 @@ logs in as an already invited account instead of creating an unrestricted test
 account, and `--client-homeserver-url` keeps local backend probes separate from
 the browser's canonical URL. It verifies both managed agents, membership,
 restart persistence, and a post-restart reply. It sends visible test messages.
+The temporary smoke-test login is logged out on success or failure, including
+after restart checks; it does not accumulate permanent owner sessions.
 
 To exercise the same test over canonical HTTPS, use `--canonical`:
 
