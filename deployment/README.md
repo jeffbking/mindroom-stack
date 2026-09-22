@@ -82,6 +82,15 @@ its standalone admin UI does not have a separate Matrix login. Chat requires
 Matrix authentication. Nothing uses Funnel, a public tunnel, or a LAN listener.
 The managed rooms are private but not E2EE by default.
 
+`MINDROOM_OWNER_USER_ID=@jeff:matrix.walrus-bebop.ts.net` maps standalone dashboard
+requests to the existing Matrix administrator. Without it, agent-specific tool
+catalog requests return 403 and the UI misleadingly labels valid tools
+"Selected But Unavailable". This is the supported single-owner setting; adding
+separate human dashboard owners requires verified per-user upstream identity
+instead of sharing this owner mapping. Preserve the private owner/server Tailnet
+grants. After changing container environment, apply it with
+`docker compose up -d --no-deps mindroom`; `restart` alone keeps old environment.
+
 Chat hides the signup link after the initial owner account is created. Its
 welcome screen links directly to the canonical dashboard. The hosted-service
 "local MindRoom" pairing tab is disabled because this standalone stack does
