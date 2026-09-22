@@ -23,6 +23,8 @@ services:
     image: ${MINDROOM_IMAGE:-ghcr.io/mindroom-ai/mindroom@sha256:adaf692c4e5f5bacabca66363f56d8037321f35c4d0c31153f208322a37a489c}
     environment:
       MATRIX_SERVER_NAME: matrix.walrus-bebop.ts.net
+      # Bind this single-owner dashboard to its existing Matrix administrator.
+      MINDROOM_OWNER_USER_ID: "@jeff:matrix.walrus-bebop.ts.net"
       MATRIX_REGISTRATION_TOKEN: ${MATRIX_REGISTRATION_TOKEN:?Set the private registration token in .env}
       # MindRoom's OpenAI-compatible adapter authenticates to Meta's endpoint.
       OPENAI_API_KEY: ${META_API_KEY:?Set the Meta API key in .env}
