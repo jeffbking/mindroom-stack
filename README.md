@@ -1,3 +1,21 @@
+# Jeff's private Tailnet deployment
+
+This fork runs at `https://matrix.walrus-bebop.ts.net`,
+`https://mindroom.walrus-bebop.ts.net`, and
+`https://mindroom-admin.walrus-bebop.ts.net` using Meta Muse Spark 1.3 Contributor.
+**Follow [deployment/README.md](deployment/README.md) for first setup, credentials,
+operations, backups, and deliberate upgrades.** Its private Compose override is
+loaded automatically. Quickstart creates a missing `.env` from
+`deployment/deployment.env.example`; set `META_API_KEY` and
+`MATRIX_REGISTRATION_TOKEN` privately before startup. The permanent homeserver
+identity and the first human account must be prepared before starting the agents.
+
+The upstream README is preserved below as reference. Its localhost URLs,
+open-registration assumptions, and Anthropic quickstart are superseded by the
+deployment guide for this fork.
+
+---
+
 # MindRoom Stack (Full Docker Compose)
 
 <picture>

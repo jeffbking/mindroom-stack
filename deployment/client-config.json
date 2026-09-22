@@ -1,0 +1,24 @@
+{
+  "defaultHomeserver": 0,
+  "homeserverList": ["${CLIENT_HOMESERVER_URL}"],
+  "allowCustomHomeservers": false,
+  "sidebar": {
+    "showExploreCommunity": false,
+    "showAddSpace": false,
+    "showMindRoom": false,
+    "mindRoomUrl": "${MINDROOM_DASHBOARD_URL}"
+  },
+  "auth": {
+    "hideServerPickerWhenSingle": true,
+    "allowRegistration": false,
+    "requireAppleProvider": false
+  },
+  "welcome": {
+    "title": "Welcome to MindRoom",
+    "subtitle": "Private Matrix chat on your Tailnet.",
+    "sourceLabel": "Deployment Source",
+    "sourceUrl": "https://github.com/jeffbking/mindroom-stack",
+    "docsLabel": "Dashboard",
+    "docsUrl": "${MINDROOM_DASHBOARD_URL}"
+  }
+}

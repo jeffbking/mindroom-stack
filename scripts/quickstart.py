@@ -16,6 +16,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from bootstrap_runtime import bootstrap_runtime
+
 STACK_ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = STACK_ROOT / ".env"
 ENV_EXAMPLE_FILE = STACK_ROOT / ".env.example"
@@ -29,6 +31,7 @@ DEFAULT_CLIENT_URL = f"http://localhost:{DEFAULT_CLIENT_PORT}"
 DEFAULT_DASHBOARD_URL = f"http://localhost:{DEFAULT_DASHBOARD_PORT}"
 
 PROVIDER_KEYS = (
+    "META_API_KEY",
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "GOOGLE_API_KEY",
@@ -154,9 +157,12 @@ def _ensure_env_file() -> dict[str, str]:
     if ENV_FILE.exists():
         return _load_env_file(ENV_FILE)
 
-    shutil.copyfile(ENV_EXAMPLE_FILE, ENV_FILE)
+    template = STACK_ROOT / "deployment/deployment.env.example"
+    shutil.copyfile(template if template.exists() else ENV_EXAMPLE_FILE, ENV_FILE)
+    ENV_FILE.chmod(0o600)
     raise QuickstartError(
-        "Created .env from .env.example. Set ANTHROPIC_API_KEY in .env and rerun ./scripts/quickstart.py."
+        "Created private .env. Set META_API_KEY and MATRIX_REGISTRATION_TOKEN in .env "
+        "and follow deployment/README.md before first startup."
     )
 
 
@@ -274,7 +280,7 @@ def _preflight() -> tuple[dict[str, str], list[str]]:
         return env_values, configured_keys
 
     raise QuickstartError(
-        "No AI provider key is configured. Set ANTHROPIC_API_KEY in .env for the fastest path, then rerun."
+        "No AI provider key is configured. Set META_API_KEY in the private .env, then rerun."
     )
 
 
@@ -337,11 +343,8 @@ def main() -> int:
         host_dashboard_port = _env_value(env_values, "HOST_DASHBOARD_PORT", DEFAULT_DASHBOARD_PORT)
         homeserver_url = f"http://localhost:{host_homeserver_port}"
         client_url = f"http://localhost:{host_client_port}"
-        dashboard_url = _env_value(
-            env_values,
-            "CLIENT_MINDROOM_URL",
-            f"http://localhost:{host_dashboard_port}",
-        )
+        # Readiness probes target the backend before the HTTPS proxy is enabled.
+        dashboard_url = f"http://localhost:{host_dashboard_port}"
         client_homeserver_url = _env_value(
             env_values,
             "CLIENT_HOMESERVER_URL",
@@ -356,6 +359,7 @@ def main() -> int:
         print(f"Using provider keys from: {', '.join(configured_keys)}")
 
         if not args.wait_only:
+            bootstrap_runtime(STACK_ROOT)
             print("Starting docker compose stack...")
             try:
                 _compose_output("up", "-d")
@@ -377,9 +381,9 @@ def main() -> int:
 
     print()
     print("Stack ready.")
-    print(f"Open client: {client_url}")
-    print(f"Open dashboard: {dashboard_url}")
-    print(f"Homeserver: {homeserver_url}")
+    print(f"Open client: {_env_value(env_values, 'CLIENT_URL', client_url)}")
+    print(f"Open dashboard: {_env_value(env_values, 'CLIENT_MINDROOM_URL', dashboard_url)}")
+    print(f"Homeserver: {client_homeserver_url}")
     print("Then create an account and try:")
     print(f"- @mindroom_assistant:{matrix_server_name} hello in #lobby:{matrix_server_name}")
     print(f"- @mindroom_mind:{matrix_server_name} who are you? in #personal:{matrix_server_name}")

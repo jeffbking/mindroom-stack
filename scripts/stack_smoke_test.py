@@ -266,7 +266,10 @@ def _restart_stack() -> None:
     )
 
 
-def _wait_for_stack_health(homeserver: str, client_url: str, dashboard_url: str, timeout_seconds: float) -> None:
+def _wait_for_stack_health(
+    homeserver: str, client_url: str, dashboard_url: str, timeout_seconds: float,
+    client_homeserver_url: str | None = None,
+) -> None:
     _wait_for_json(
         "homeserver /versions",
         timeout_seconds,
@@ -282,7 +285,7 @@ def _wait_for_stack_health(homeserver: str, client_url: str, dashboard_url: str,
         timeout_seconds,
         lambda: _request_json("GET", f"{client_url}/config.json"),
     )
-    _assert_client_config(client_url, homeserver)
+    _assert_client_config(client_url, client_homeserver_url or homeserver)
 
 
 def _wait_for_room_aliases(homeserver: str, room_aliases: list[str], timeout_seconds: float) -> None:
@@ -350,76 +353,112 @@ def _exercise_agent_reply(
 
 
 def run(args: argparse.Namespace) -> None:
-    _wait_for_stack_health(args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds)
+    _wait_for_stack_health(
+        args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds,
+        args.client_homeserver_url,
+    )
     _wait_for_room_aliases(
         args.homeserver,
         [args.assistant_room_alias, args.mind_room_alias],
         args.timeout_seconds,
     )
 
-    user = _register_user(args.homeserver)
-    print(f"Registered {user.user_id}", flush=True)
+    if args.credentials_file:
+        # Production rooms are private and registration is token-gated. Exercise
+        # the existing invited owner instead of weakening either policy.
+        credentials = json.loads(Path(args.credentials_file).read_text(encoding="utf-8"))
+        response = _request_json("POST", f"{args.homeserver}/_matrix/client/v3/login", payload={
+            "type": "m.login.password",
+            "identifier": {"type": "m.id.user", "user": credentials["user_id"]},
+            "password": credentials["password"],
+            "initial_device_display_name": "stack-smoke-test",
+        })
+        user = RegisteredUser(response["user_id"], response["access_token"], credentials["password"])
+    else:
+        user = _register_user(args.homeserver)
+        print(f"Registered {user.user_id}", flush=True)
 
-    lobby_room_id = _resolve_and_wait_for_autojoin(
-        args.homeserver,
-        user.access_token,
-        room_alias=args.assistant_room_alias,
-        user_id=user.user_id,
-        timeout_seconds=args.timeout_seconds,
-    )
-    personal_room_id = _resolve_and_wait_for_autojoin(
-        args.homeserver,
-        user.access_token,
-        room_alias=args.mind_room_alias,
-        user_id=user.user_id,
-        timeout_seconds=args.timeout_seconds,
-    )
+    try:
+        if args.credentials_file:
+            if user.user_id != credentials["user_id"]:
+                raise SmokeTestError("Login returned a different Matrix identity")
+            print(f"Logged in as {user.user_id}", flush=True)
+            for alias in (args.assistant_room_alias, args.mind_room_alias):
+                _request_json(
+                    "POST", f"{args.homeserver}/_matrix/client/v3/join/{urllib.parse.quote(alias, safe='')}",
+                    token=user.access_token, payload={},
+                )
 
-    initial_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    since = initial_sync.get("next_batch")
+        lobby_room_id = _resolve_and_wait_for_autojoin(
+            args.homeserver,
+            user.access_token,
+            room_alias=args.assistant_room_alias,
+            user_id=user.user_id,
+            timeout_seconds=args.timeout_seconds,
+        )
+        personal_room_id = _resolve_and_wait_for_autojoin(
+            args.homeserver,
+            user.access_token,
+            room_alias=args.mind_room_alias,
+            user_id=user.user_id,
+            timeout_seconds=args.timeout_seconds,
+        )
 
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=lobby_room_id,
-        agent_user_id=args.assistant_user_id,
-        marker_prefix="ASSISTANT",
-        since=since,
-        timeout_seconds=args.timeout_seconds,
-    )
-    post_assistant_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=personal_room_id,
-        agent_user_id=args.mind_user_id,
-        marker_prefix="MIND",
-        since=post_assistant_sync.get("next_batch"),
-        timeout_seconds=args.timeout_seconds,
-    )
+        initial_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        since = initial_sync.get("next_batch")
 
-    if not args.restart_check:
-        return
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=lobby_room_id,
+            agent_user_id=args.assistant_user_id,
+            marker_prefix="ASSISTANT",
+            since=since,
+            timeout_seconds=args.timeout_seconds,
+        )
+        post_assistant_sync = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=personal_room_id,
+            agent_user_id=args.mind_user_id,
+            marker_prefix="MIND",
+            since=post_assistant_sync.get("next_batch"),
+            timeout_seconds=args.timeout_seconds,
+        )
 
-    _restart_stack()
-    _wait_for_stack_health(args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds)
+        if not args.restart_check:
+            return
 
-    joined_after_restart = _joined_rooms(args.homeserver, user.access_token)
-    missing_after_restart = [room_id for room_id in (lobby_room_id, personal_room_id) if room_id not in joined_after_restart]
-    if missing_after_restart:
-        raise SmokeTestError(f"User lost room membership after restart: {missing_after_restart}; joined={joined_after_restart}")
-    print("Restart preserved homeserver health and room membership", flush=True)
+        _restart_stack()
+        _wait_for_stack_health(
+            args.homeserver, args.client_url, args.dashboard_url, args.timeout_seconds,
+            args.client_homeserver_url,
+        )
 
-    sync_after_restart = _sync(args.homeserver, user.access_token, timeout_ms=0)
-    _exercise_agent_reply(
-        args.homeserver,
-        user.access_token,
-        room_id=personal_room_id,
-        agent_user_id=args.mind_user_id,
-        marker_prefix="RESTART-MIND",
-        since=sync_after_restart.get("next_batch"),
-        timeout_seconds=args.timeout_seconds,
-    )
+        joined_after_restart = _joined_rooms(args.homeserver, user.access_token)
+        missing_after_restart = [room_id for room_id in (lobby_room_id, personal_room_id) if room_id not in joined_after_restart]
+        if missing_after_restart:
+            raise SmokeTestError(f"User lost room membership after restart: {missing_after_restart}; joined={joined_after_restart}")
+        print("Restart preserved homeserver health and room membership", flush=True)
+
+        sync_after_restart = _sync(args.homeserver, user.access_token, timeout_ms=0)
+        _exercise_agent_reply(
+            args.homeserver,
+            user.access_token,
+            room_id=personal_room_id,
+            agent_user_id=args.mind_user_id,
+            marker_prefix="RESTART-MIND",
+            since=sync_after_restart.get("next_batch"),
+            timeout_seconds=args.timeout_seconds,
+        )
+    finally:
+        if args.credentials_file:
+            _request_json(
+                "POST", f"{args.homeserver}/_matrix/client/v3/logout",
+                token=user.access_token, payload={},
+            )
+            print("Logged out the temporary smoke-test session", flush=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -427,6 +466,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--homeserver", default="http://localhost:8008")
     parser.add_argument("--client-url", default="http://localhost:8080")
     parser.add_argument("--dashboard-url", default="http://localhost:8765")
+    parser.add_argument("--client-homeserver-url", help="Expected browser URL when probing local backends")
+    parser.add_argument("--credentials-file", help="Owner-only JSON file with user_id and password for private rooms")
     parser.add_argument("--assistant-room-alias", default="#lobby:matrix.localhost")
     parser.add_argument("--mind-room-alias", default="#personal:matrix.localhost")
     parser.add_argument("--assistant-user-id", default="@mindroom_assistant:matrix.localhost")
