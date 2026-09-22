@@ -27,7 +27,7 @@ agents:
     display_name: Mind
     role: Personal assistant with persistent file-based identity and memory
     model: default
-    rooms: [personal]
+    rooms: [personal, lobby]
     accept_invites: ["@jeff:matrix.walrus-bebop.ts.net"]
     access:
       current_room_members: false

@@ -61,7 +61,8 @@ Managed accounts are `@mindroom_assistant`, `@mindroom_mind`,
 `@mindroom_router`, and `@mindroom_user`, all on this homeserver.
 The private MindRoom space contains `#lobby` and `#personal` on this server;
 Tuwunel also has `#admins`. Lobby and Personal are invite-only, unlisted, and
-give Jeff administrator access. Agent response and invitation permissions are
+give Jeff administrator access. Lobby contains both Assistant and Mind for
+shared-room mentions; Personal contains Mind. Agent response and invitation permissions are
 restricted to Jeff's full Matrix ID. Mention Assistant or Mind using Chat's
 autocomplete to address the desired agent. The current upstream runtime may
 also answer Jeff's unmentioned messages in its single-agent rooms; external
