@@ -11,8 +11,27 @@ models:
 
 mcp_servers:
   smart:
-    transport: streamable-http
-    url: 'https://mcp.walrus-bebop.ts.net/mcp/$smart'
+    # Native remote MCP rejects private IPs in the pinned MindRoom release.
+    # This trusted stdio adapter connects only to our canonical Tailnet URL.
+    transport: stdio
+    command: /usr/bin/uvx
+    args:
+      - --from
+      - mcp-proxy==0.12.0
+      - --with
+      - mcp==1.30.0
+      - --exclude-newer
+      - '2026-09-22T00:00:00Z'
+      - mcp-proxy
+      - --log-level
+      - WARNING
+      - --transport
+      - streamablehttp
+      - 'https://mcp.walrus-bebop.ts.net/mcp/$smart'
+    env:
+      UV_CACHE_DIR: /app/mindroom_data/.cache/uv
+      UV_PYTHON_DOWNLOADS: never
+    startup_timeout_seconds: 120
 
 agents:
   assistant:

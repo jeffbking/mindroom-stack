@@ -236,7 +236,22 @@ rollback shortcut. Return to `main` after the reviewed correction is ready.
 ### MCPHub tools for Mind
 
 Mind connects to the existing private MCPHub endpoint
-`https://mcp.walrus-bebop.ts.net/mcp/$smart` with `streamable-http`.
+`https://mcp.walrus-bebop.ts.net/mcp/$smart` through the MIT-licensed
+[`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) stdio adapter, which uses
+Streamable HTTP upstream. The pinned MindRoom release rejects private addresses
+in its native remote MCP transport and exposes no per-server allowlist. The
+explicitly configured adapter uses the existing `uvx` executable; it does not
+change MindRoom's general fetch policy or open a listening port.
+
+The adapter is pinned to `mcp-proxy==0.12.0` and `mcp==1.30.0`; the SDK pin avoids
+the adapter's [MCP 2.x incompatibility](https://github.com/sparfenyuk/mcp-proxy/issues/235).
+A fixed uv resolution cutoff prevents newly published transitive dependencies
+from being selected on later starts. This is a release-date constraint, not a
+hash lock. The first start needs PyPI access; downloaded packages and the isolated
+tool environment persist in `mindroom_data/.cache/uv`. Deliberate adapter upgrades
+must review both pins and the cutoff, then repeat discovery and a read-only tool
+call. No MindRoom image or installed Python package is modified.
+
 `$smart` is a literal gateway path segment, not an environment placeholder;
 single-quote the URL if using it in a shell. The endpoint is reachable from
 the MindRoom container without an additional authorization header.
