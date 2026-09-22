@@ -1,0 +1,11 @@
+diff --git a/src/mindroom/api/main.py b/src/mindroom/api/main.py
+--- a/src/mindroom/api/main.py
++++ b/src/mindroom/api/main.py
+@@ -361,6 +361,7 @@ def initialize_api_app(api_app: FastAPI, runtime_paths: constants.RuntimePaths) -> None:
+             bind_script_tool_broker(api_app, None)
+         previous_state.snapshot = config_lifecycle._published_snapshot(
+             current_snapshot,
++            increment_generation=current_snapshot.runtime_paths != runtime_paths,
+             runtime_paths=runtime_paths,
+             config_data=config_data,
+             runtime_config=runtime_config,

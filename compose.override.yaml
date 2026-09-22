@@ -20,7 +20,13 @@ services:
       - ./runtime/config:/app/config
 
   mindroom:
-    image: ${MINDROOM_IMAGE:-ghcr.io/mindroom-ai/mindroom@sha256:adaf692c4e5f5bacabca66363f56d8037321f35c4d0c31153f208322a37a489c}
+    image: mindroom-local:2026.9.231-save-generation-v1
+    # Build from the pinned upstream image; cached rebuilds do not fetch latest.
+    pull_policy: build
+    build:
+      context: ./deployment/mindroom
+      args:
+        MINDROOM_BASE_IMAGE: ${MINDROOM_IMAGE:-ghcr.io/mindroom-ai/mindroom@sha256:adaf692c4e5f5bacabca66363f56d8037321f35c4d0c31153f208322a37a489c}
     environment:
       MATRIX_SERVER_NAME: matrix.walrus-bebop.ts.net
       # Bind this single-owner dashboard to its existing Matrix administrator.
