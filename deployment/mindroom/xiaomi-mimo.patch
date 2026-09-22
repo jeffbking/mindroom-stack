@@ -1,0 +1,63 @@
+--- a/src/mindroom/constants.py
++++ b/src/mindroom/constants.py
+@@ -1111,6 +1111,7 @@
+     "google": "GOOGLE_API_KEY",
+     "openrouter": "OPENROUTER_API_KEY",
+     "deepseek": "DEEPSEEK_API_KEY",
++    "xiaomi": "MIMO_API_KEY",
+     "cerebras": "CEREBRAS_API_KEY",
+     "groq": "GROQ_API_KEY",
+     "zai": "ZAI_API_KEY",
+--- a/src/mindroom/openai_models.py
++++ b/src/mindroom/openai_models.py
+@@ -15,6 +15,7 @@
+ from agno.models.openai import OpenAIChat, OpenAIResponses
+ from agno.models.openai.like import OpenAILike
+ from agno.models.openrouter import OpenRouter
++from agno.models.xiaomi import MiMo
+ from agno.utils.media import get_image_type
+ from agno.utils.tokens import _parse_image_dimensions_from_bytes
+ 
+@@ -129,6 +130,11 @@
+ @dataclass
+ class MindRoomDeepSeek(OpenAIChatProviderCompat, DeepSeek):
+     """DeepSeek model that can replay tool calls from other providers."""
++
++
++@dataclass
++class MindRoomMiMo(OpenAIChatProviderCompat, MiMo):
++    """Xiaomi MiMo with native reasoning replay and MindRoom tool compatibility."""
+ 
+ 
+ @dataclass
+--- a/src/mindroom/model_loading.py
++++ b/src/mindroom/model_loading.py
+@@ -358,6 +358,11 @@
+ 
+         return MindRoomDeepSeek(id=model_id, **extra_kwargs)
+ 
++    if canonical_provider_key == "xiaomi":
++        from mindroom.openai_models import MindRoomMiMo  # noqa: PLC0415
++
++        return MindRoomMiMo(id=model_id, **extra_kwargs)
++
+     msg = f"Unsupported AI provider: {provider}"
+     raise ValueError(msg)
+ 
+--- a/frontend/src/lib/providers.tsx
++++ b/frontend/src/lib/providers.tsx
+@@ -93,6 +93,14 @@
+     icon: (className = "h-5 w-5") => <Groq className={className} />,
+     requiresApiKey: true,
+   },
++  xiaomi: {
++    id: "xiaomi",
++    name: "Xiaomi MiMo",
++    description: "Configure your Xiaomi MiMo API key",
++    color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
++    icon: (className = "h-5 w-5") => <Brain className={className} />,
++    requiresApiKey: true,
++  },
+   deepseek: {
+     id: "deepseek",
+     name: "DeepSeek",
