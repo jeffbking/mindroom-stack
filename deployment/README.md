@@ -17,7 +17,8 @@ exhausted, and this subnet did not overlap the existing host routes/networks.
 `upstream` is https://github.com/mindroom-ai/mindroom-stack.git.
 The original stack revision was `e23ee0e` (no upstream stack release tags).
 Dependencies remain pinned upstream images. MindRoom has the small local
-save-generation patch described below; no application source fork is required.
+dashboard fixes and Xiaomi provider integration described below; no application
+source fork is required.
 
 ## Reproducible configuration
 
@@ -44,7 +45,7 @@ time during hot reload after a successful save. The next save then returns
 409 even though no other editor changed the configuration. The same defect
 was present in upstream 2026.9.235 when checked.
 
-`deployment/mindroom/` builds `mindroom-local:2026.9.231-dashboard-fixes-v2`
+`deployment/mindroom/` builds `mindroom-local:2026.9.231-xiaomi-v3`
 from the exact upstream digest above, using Git's existing patch application
 and MindRoom's existing generation/revision guards. Its one-line patch keeps
 the generation unchanged when reinitializing the same runtime. Runtime swaps,
@@ -61,7 +62,7 @@ or review its compatibility and update the local version tag deliberately.
 ```sh
 docker compose build mindroom
 docker run --rm --network none --entrypoint python \
-  mindroom-local:2026.9.231-dashboard-fixes-v2 /tmp/test_save_generation.py
+  mindroom-local:2026.9.231-xiaomi-v3 /tmp/test_save_generation.py
 docker compose up -d --no-deps mindroom
 ```
 
@@ -90,6 +91,49 @@ The model is `muse-spark-1.3-contributor` at `https://api.meta.ai/v1` through
 MindRoom's supported `openai` / `chat_completions` adapter. `META_API_KEY` in
 the private `.env` is mapped to the adapter's `OPENAI_API_KEY` inside the
 container. This does not configure an OpenAI-hosted model. No key is tracked.
+
+### Xiaomi MiMo model options
+
+| Config name | Model ID | Dashboard label |
+| --- | --- | --- |
+| `mimo-flash` | `mimo-v2.6-flash` | Xiaomi MiMo V2.6 Flash |
+| `mimo-pro` | `mimo-v2.6-pro` | Xiaomi MiMo V2.6 Pro |
+
+Both use `provider: xiaomi`, Xiaomi's standard API at
+`https://api.xiaomimimo.com/v1`, thinking enabled, a conservative 1,000,000-token
+context window, and a 16,384-token output cap. These are selectable options;
+adding them does not change the default model or any agent assignment.
+Select one under **Agents → your agent → Model**, then save.
+
+The pinned MindRoom image already includes Agno's native `MiMo` adapter but
+does not dispatch to it. `xiaomi-mimo.patch` connects that adapter to MindRoom's
+loader, credential mapping, and dashboard provider list. It combines Agno's
+reasoning-content replay with MindRoom's existing tool-call compatibility mixin.
+No SDK or dependency is added. The generic OpenAI adapter was considered but
+omits reasoning content during tool replay and can fall back to the deployment's
+unrelated OpenAI-compatible credential when a model key is missing.
+The native adapter fails closed without a Xiaomi key. Build-time integration
+tests cover dispatch, credential isolation, reasoning/tool replay, and options.
+
+On an existing installation, first build and recreate only MindRoom with this
+patch. Then merge **only** `models.mimo-flash` and `models.mimo-pro` from the
+template into the live configuration, preserving other settings. Prefer the
+dashboard's generation-checked configuration save to avoid concurrent edits.
+Bootstrap does not merge a changed template into an existing runtime file.
+
+Store or rotate keys using each model's API-key field on the Models page.
+The installed keys are scoped to `model:mimo-flash` and `model:mimo-pro` in
+MindRoom's shared credential store, persisted in `mindroom_data`, with private
+file permissions. Back up that volume securely. Do not put keys in tracked YAML,
+replace the Muse credential, or expose keys in shell command arguments.
+A shared `xiaomi` provider credential (or `MIMO_API_KEY` exported into the
+container) is also supported; model-specific keys take precedence.
+The supplied standard API key was used; Xiaomi Token Plan endpoints require
+their separate credentials and are not configured here.
+
+Sources: [Xiaomi model catalog](https://mimo.mi.com/docs/en-US/quick-start/summary/model),
+[Xiaomi first API call](https://mimo.mi.com/docs/en-US/quick-start/summary/first-api-call),
+and [Agno's native MiMo adapter](https://docs.agno.com/models/providers/native/xiaomi/overview).
 
 ### ChatGPT OAuth model option
 

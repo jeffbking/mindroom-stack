@@ -20,7 +20,7 @@ services:
       - ./runtime/config:/app/config
 
   mindroom:
-    image: mindroom-local:2026.9.231-dashboard-fixes-v2
+    image: mindroom-local:2026.9.231-xiaomi-v3
     # Build from the pinned upstream image; cached rebuilds do not fetch latest.
     pull_policy: build
     build:

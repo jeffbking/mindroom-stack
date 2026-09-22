@@ -23,6 +23,23 @@ models:
     extra_kwargs:
       codex_home: /app/config/codex-auth
 
+  mimo-flash:
+    provider: xiaomi
+    id: mimo-v2.6-flash
+    display_name: Xiaomi MiMo V2.6 Flash
+    context_window: 1000000
+    extra_kwargs:
+      use_thinking: true
+      max_tokens: 16384
+  mimo-pro:
+    provider: xiaomi
+    id: mimo-v2.6-pro
+    display_name: Xiaomi MiMo V2.6 Pro
+    context_window: 1000000
+    extra_kwargs:
+      use_thinking: true
+      max_tokens: 16384
+
 mcp_servers:
   smart:
     # Native remote MCP rejects private IPs in the pinned MindRoom release.
