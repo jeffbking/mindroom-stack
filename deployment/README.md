@@ -44,7 +44,7 @@ time during hot reload after a successful save. The next save then returns
 409 even though no other editor changed the configuration. The same defect
 was present in upstream 2026.9.235 when checked.
 
-`deployment/mindroom/` builds `mindroom-local:2026.9.231-save-generation-v1`
+`deployment/mindroom/` builds `mindroom-local:2026.9.231-dashboard-fixes-v2`
 from the exact upstream digest above, using Git's existing patch application
 and MindRoom's existing generation/revision guards. Its one-line patch keeps
 the generation unchanged when reinitializing the same runtime. Runtime swaps,
@@ -55,13 +55,13 @@ Compose builds this image for `mindroom` only; `MINDROOM_IMAGE` remains the
 pinned **base** image and the permissions helper continues to use it directly.
 The build fails if the patch cannot apply or the five save/reload regression
 tests fail. Cached builds do not follow a moving image tag. Check upgrades
-against this patch: remove it once the equivalent upstream fix is verified,
+against these patches: remove them once the equivalent upstream fixes are verified,
 or review its compatibility and update the local version tag deliberately.
 
 ```sh
 docker compose build mindroom
 docker run --rm --network none --entrypoint python \
-  mindroom-local:2026.9.231-save-generation-v1 /tmp/test_save_generation.py
+  mindroom-local:2026.9.231-dashboard-fixes-v2 /tmp/test_save_generation.py
 docker compose up -d --no-deps mindroom
 ```
 
@@ -69,6 +69,22 @@ This recreates only MindRoom, briefly interrupting its dashboard and agents.
 Matrix, Chat, persistent data, and Tailscale mappings are unaffected. After an
 upgrade, preserve any unsaved browser draft before refreshing once. Genuine
 edits from another dashboard tab or an agent still require reconciliation.
+
+### Agent deletion
+
+Upstream's Agent Editor removed an agent only from the browser draft, then
+hid its Save button. Refreshing restored the still-saved agent. The additional
+`agent-delete.patch` makes confirmed deletion call the existing configuration
+save path immediately. Its confirmation explicitly includes any pending
+configuration edits, since MindRoom saves one configuration document. Cancel
+leaves the draft unchanged; save conflicts or failures show `Delete Failed`.
+Deletion is disabled while a save is running.
+
+The dashboard is rebuilt in a separate build stage using Bun 1.3.14 pinned by
+digest and the upstream frozen lockfile. The Agent Editor and configuration
+store tests run before bundling; build tools and node_modules do not enter the
+runtime image. This removes the managed agent configuration using MindRoom's
+normal reload behavior; it does not purge Matrix history, accounts, or memories.
 
 The model is `muse-spark-1.3-contributor` at `https://api.meta.ai/v1` through
 MindRoom's supported `openai` / `chat_completions` adapter. `META_API_KEY` in
