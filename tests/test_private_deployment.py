@@ -11,10 +11,24 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from bootstrap_runtime import bootstrap_runtime
+import quickstart
 import stack_smoke_test as smoke
 
 
 class PrivateDeploymentTest(unittest.TestCase):
+    def test_missing_env_uses_private_template_and_stops_before_startup(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "deployment").mkdir()
+            template = root / "deployment/deployment.env.example"
+            template.write_text("META_API_KEY=\nMATRIX_REGISTRATION_TOKEN=\n")
+            env_file = root / ".env"
+            with patch.object(quickstart, "STACK_ROOT", root), patch.object(quickstart, "ENV_FILE", env_file):
+                with self.assertRaisesRegex(quickstart.QuickstartError, "META_API_KEY and MATRIX_REGISTRATION_TOKEN"):
+                    quickstart._ensure_env_file()
+            self.assertEqual(env_file.read_text(), template.read_text())
+            self.assertEqual(env_file.stat().st_mode & 0o777, 0o600)
+
     def test_bootstrap_seeds_missing_files_and_preserves_live_edits(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
