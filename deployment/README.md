@@ -16,7 +16,8 @@ exhausted, and this subnet did not overlap the existing host routes/networks.
 `origin` is https://github.com/jeffbking/mindroom-stack.git;
 `upstream` is https://github.com/mindroom-ai/mindroom-stack.git.
 The original stack revision was `e23ee0e` (no upstream stack release tags).
-Dependencies remain upstream images, not source forks.
+Dependencies remain pinned upstream images. MindRoom has the small local
+save-generation patch described below; no application source fork is required.
 
 ## Reproducible configuration
 
@@ -36,6 +37,39 @@ deployment. `deployment/config.yaml` is the reproducible initial configuration;
 Review and fold intended dashboard changes into the template before committing.
 Do not blindly overwrite the runtime copy during upgrades.
 
+### Dashboard save/reload fix
+
+MindRoom 2026.9.231 increments the dashboard configuration generation a second
+time during hot reload after a successful save. The next save then returns
+409 even though no other editor changed the configuration. The same defect
+was present in upstream 2026.9.235 when checked.
+
+`deployment/mindroom/` builds `mindroom-local:2026.9.231-save-generation-v1`
+from the exact upstream digest above, using Git's existing patch application
+and MindRoom's existing generation/revision guards. Its one-line patch keeps
+the generation unchanged when reinitializing the same runtime. Runtime swaps,
+actual competing edits, and in-flight revision checks still invalidate stale
+writes. No concurrency check is disabled and no new dependency is added.
+
+Compose builds this image for `mindroom` only; `MINDROOM_IMAGE` remains the
+pinned **base** image and the permissions helper continues to use it directly.
+The build fails if the patch cannot apply or the five save/reload regression
+tests fail. Cached builds do not follow a moving image tag. Check upgrades
+against this patch: remove it once the equivalent upstream fix is verified,
+or review its compatibility and update the local version tag deliberately.
+
+```sh
+docker compose build mindroom
+docker run --rm --network none --entrypoint python \
+  mindroom-local:2026.9.231-save-generation-v1 /tmp/test_save_generation.py
+docker compose up -d --no-deps mindroom
+```
+
+This recreates only MindRoom, briefly interrupting its dashboard and agents.
+Matrix, Chat, persistent data, and Tailscale mappings are unaffected. After an
+upgrade, preserve any unsaved browser draft before refreshing once. Genuine
+edits from another dashboard tab or an agent still require reconciliation.
+
 The model is `muse-spark-1.3-contributor` at `https://api.meta.ai/v1` through
 MindRoom's supported `openai` / `chat_completions` adapter. `META_API_KEY` in
 the private `.env` is mapped to the adapter's `OPENAI_API_KEY` inside the
@@ -54,6 +88,14 @@ Select either in an agent's Model field; adding the options does not change
 existing agent models or the default Muse model. Both share the deployment's
 dedicated OAuth session. The conservative 258,000-token replay window follows
 the installed MindRoom Codex preset.
+
+On an **existing installation**, bootstrap intentionally preserves the live
+configuration. Before selecting these options, merge only the `models.codex`
+and `models.codex-luna` entries from `deployment/config.yaml` into
+`runtime/config/config.yaml`, keeping all other models, agents, and live edits.
+Do not copy the entire template over the live file. MindRoom watches that file;
+after the reload, refresh the dashboard so its model list includes both entries.
+This merge has already been applied to the 5900xt deployment.
 
 Authenticate a dedicated session with the official Codex CLI's device login.
 MindRoom reads and refreshes its tokens in `/app/config/codex-auth/auth.json`,
@@ -99,7 +141,8 @@ Reuse: official Compose, MindRoom's provider adapter, Matrix registration-token
 support, Tailscale Serve, and the upstream smoke-test helpers handle deployment
 and protocols. The additions are deployment-specific configuration and small
 extensions to the existing setup/test scripts; no protocol client, parser,
-reverse proxy, or application source fork was added.
+reverse proxy, or application source fork was added. The save/reload correction
+above uses the existing application's generation control.
 
 ## Identity, access, and data
 
@@ -271,7 +314,8 @@ docker image inspect ghcr.io/mindroom-ai/mindroom:CHOSEN_VERSION \
 ```
 
 Repeat for Chat/Tuwunel as needed. Review release notes, migrations, platform
-and compatibility; update the three image variables in the private `.env`,
+and compatibility; review/remove the local save-generation patch as described
+above, then update the three image variables in the private `.env`,
 `deployment/deployment.env.example`, and Compose override defaults to the
 reviewed digests. Commit nonsecret changes. Save the prior `.env` and an offline
 data snapshot before `docker compose up -d`; run both smoke modes afterward.
@@ -313,7 +357,8 @@ from being selected on later starts. This is a release-date constraint, not a
 hash lock. The first start needs PyPI access; downloaded packages and the isolated
 tool environment persist in `mindroom_data/.cache/uv`. Deliberate adapter upgrades
 must review both pins and the cutoff, then repeat discovery and a read-only tool
-call. No MindRoom image or installed Python package is modified.
+call. The MCP adapter changes no installed Python package; the separate
+save-generation image patch is unrelated to this transport integration.
 
 `$smart` is a literal gateway path segment, not an environment placeholder;
 single-quote the URL if using it in a shell. The endpoint is reachable from
