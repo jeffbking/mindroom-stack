@@ -29,6 +29,7 @@ DEFAULT_CLIENT_URL = f"http://localhost:{DEFAULT_CLIENT_PORT}"
 DEFAULT_DASHBOARD_URL = f"http://localhost:{DEFAULT_DASHBOARD_PORT}"
 
 PROVIDER_KEYS = (
+    "META_API_KEY",
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "GOOGLE_API_KEY",
@@ -337,11 +338,8 @@ def main() -> int:
         host_dashboard_port = _env_value(env_values, "HOST_DASHBOARD_PORT", DEFAULT_DASHBOARD_PORT)
         homeserver_url = f"http://localhost:{host_homeserver_port}"
         client_url = f"http://localhost:{host_client_port}"
-        dashboard_url = _env_value(
-            env_values,
-            "CLIENT_MINDROOM_URL",
-            f"http://localhost:{host_dashboard_port}",
-        )
+        # Readiness probes target the backend before the HTTPS proxy is enabled.
+        dashboard_url = f"http://localhost:{host_dashboard_port}"
         client_homeserver_url = _env_value(
             env_values,
             "CLIENT_HOMESERVER_URL",
@@ -377,9 +375,9 @@ def main() -> int:
 
     print()
     print("Stack ready.")
-    print(f"Open client: {client_url}")
-    print(f"Open dashboard: {dashboard_url}")
-    print(f"Homeserver: {homeserver_url}")
+    print(f"Open client: {_env_value(env_values, 'CLIENT_URL', client_url)}")
+    print(f"Open dashboard: {_env_value(env_values, 'CLIENT_MINDROOM_URL', dashboard_url)}")
+    print(f"Homeserver: {client_homeserver_url}")
     print("Then create an account and try:")
     print(f"- @mindroom_assistant:{matrix_server_name} hello in #lobby:{matrix_server_name}")
     print(f"- @mindroom_mind:{matrix_server_name} who are you? in #personal:{matrix_server_name}")

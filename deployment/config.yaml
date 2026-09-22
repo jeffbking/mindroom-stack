@@ -1,0 +1,86 @@
+models:
+  default:
+    provider: openai
+    api: chat_completions
+    id: muse-spark-1.3-contributor
+    display_name: Muse Spark 1.3 Contributor
+    context_window: 1048576
+    extra_kwargs:
+      base_url: https://api.meta.ai/v1
+      max_completion_tokens: 16384
+
+agents:
+  assistant:
+    display_name: Assistant
+    role: A helpful general-purpose assistant
+    model: default
+    rooms: [lobby]
+    accept_invites: ["@jeff:matrix.walrus-bebop.ts.net"]
+    access:
+      current_room_members: false
+      users: ["@jeff:matrix.walrus-bebop.ts.net"]
+    include_default_tools: false
+    tools: []
+    instructions:
+      - Be helpful and conversational.
+  mind:
+    display_name: Mind
+    role: Personal assistant with persistent file-based identity and memory
+    model: default
+    rooms: [personal]
+    accept_invites: ["@jeff:matrix.walrus-bebop.ts.net"]
+    access:
+      current_room_members: false
+      users: ["@jeff:matrix.walrus-bebop.ts.net"]
+    credential_managers: ["@jeff:matrix.walrus-bebop.ts.net"]
+    include_default_tools: false
+    learning: false
+    memory_backend: file
+    context_files: [SOUL.md, AGENTS.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md]
+    tools: [memory, thread_tags]
+    instructions:
+      - Be helpful and concise. Ask before external or destructive actions.
+      - Keep conversation state in the configured workspace; never claim knowledge from an inaccessible external memory store.
+
+router:
+  model: default
+  accept_invites: ["@jeff:matrix.walrus-bebop.ts.net"]
+  access:
+    current_room_members: false
+    users: ["@jeff:matrix.walrus-bebop.ts.net"]
+
+mindroom_user:
+  username: mindroom_user
+  display_name: MindRoom
+
+administrators: ["@jeff:matrix.walrus-bebop.ts.net"]
+room_defaults:
+  join_policy: invite
+  listed: false
+  invite_users: ["@jeff:matrix.walrus-bebop.ts.net"]
+  admins: ["@jeff:matrix.walrus-bebop.ts.net"]
+matrix_space:
+  enabled: true
+  name: MindRoom
+
+memory:
+  backend: file
+  embedder:
+    provider: sentence_transformers
+    config:
+      model: sentence-transformers/all-MiniLM-L6-v2
+  file:
+    max_entrypoint_lines: 200
+  search:
+    mode: semantic
+    include: [memory/**/*.md]
+    include_entrypoint: false
+  auto_flush:
+    enabled: true
+
+defaults:
+  tools: []
+  markdown: true
+  compaction:
+    enabled: true
+timezone: America/Toronto
