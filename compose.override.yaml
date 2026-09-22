@@ -42,3 +42,10 @@ services:
     ports: !override
       # Transit already owns 8080. The public-facing URL has no port number.
       - "127.0.0.1:${HOST_CLIENT_PORT:-8240}:80"
+
+networks:
+  default:
+    ipam:
+      config:
+        # Checked against host routes and every existing Docker network.
+        - subnet: 10.91.0.0/24
